@@ -43,7 +43,7 @@ func (cpu *CPU) INC_B() {
 
 // 0x0B
 func (cpu *CPU) DEC_BC() {
-	var bc int = int(cpu.B<<8) + int(cpu.C) - 1
+	var bc int = int(cpu.B)<<8 + int(cpu.C) - 1
 	cpu.B = byte(bc >> 8)
 	cpu.C = byte(bc & 0xff)
 	cpu.Flags.H = (0x0f & cpu.C) == 0x0
@@ -54,8 +54,8 @@ func (cpu *CPU) DEC_BC() {
 
 // 0x09
 func (cpu *CPU) ADD_HL_BC() {
-	var hl int = int(cpu.H<<8) + int(cpu.L)
-	var bc int = int(cpu.B<<8) + int(cpu.C)
+	var hl int = int(cpu.H)<<8 + int(cpu.L)
+	var bc int = int(cpu.B)<<8 + int(cpu.C)
 	val := bc + hl
 	cpu.Flags.H = (0x0f & val) > 0x0f
 	cpu.Flags.C = (0xff & val) > 0xff
@@ -129,7 +129,7 @@ func (cpu *CPU) ADD(opcode byte) {
 		val = int(cpu.A) + int(cpu.H) + int(halfCarry)
 		cpu.Flags.H = ((cpu.A & 0xF) + (cpu.H & 0xF) + (halfCarry & 0xF)) > 0xF
 	default:
-		fmt.Errorf("somehow we ended up here")
+		fmt.Println("somehow we ended up here")
 	}
 	cpu.Flags.Z = (val == 0)
 	cpu.Flags.C = val > 0xff
@@ -260,5 +260,238 @@ func (cpu *CPU) RRA() {
 	cpu.Flags.Z = false
 	cpu.Flags.N = false
 	cpu.Flags.H = false
+	cpu.PC++
+}
+
+// SUB
+// 0x90-f
+func (cpu *CPU) SUB(opcode byte) {
+	low := opcode & 0xf
+	switch low {
+	case 0x0:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.B)
+		cpu.Flags.C = cpu.A < cpu.B
+		cpu.A -= cpu.B
+	case 0x1:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.C)
+		cpu.Flags.C = cpu.A < cpu.C
+		cpu.A -= cpu.C
+	case 0x2:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.D)
+		cpu.Flags.C = cpu.A < cpu.D
+		cpu.A -= cpu.D
+	case 0x3:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.E)
+		cpu.Flags.C = cpu.A < cpu.E
+		cpu.A -= cpu.E
+	case 0x4:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.H)
+		cpu.Flags.C = cpu.A < cpu.H
+		cpu.A -= cpu.H
+	case 0x5:
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.L)
+		cpu.Flags.C = cpu.A < cpu.L
+		cpu.A -= cpu.L
+	case 0x6:
+		break
+	case 0x7:
+		cpu.Flags.H = false
+		cpu.Flags.C = false
+		cpu.A = 0
+	case 0x8:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf&cpu.B + carry)
+		cpu.Flags.C = cpu.A < (cpu.B + carry)
+		cpu.A -= (cpu.B + carry)
+	case 0x9:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf&cpu.C)+carry
+		cpu.Flags.C = cpu.A < cpu.C+carry
+		cpu.A -= (cpu.C + carry)
+	case 0xa:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf&cpu.D)+carry
+		cpu.Flags.C = cpu.A < cpu.D+carry
+		cpu.A -= (cpu.D + carry)
+	case 0xb:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf&cpu.E + carry)
+		cpu.Flags.C = cpu.A < cpu.E+carry
+		cpu.A -= (cpu.E + carry)
+	case 0xc:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.H)
+		cpu.Flags.C = cpu.A < cpu.H
+		cpu.A -= (cpu.H + carry)
+	case 0xd:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf & cpu.L)
+		cpu.Flags.C = cpu.A < cpu.L+carry
+		cpu.A -= (cpu.L + carry)
+	case 0xe:
+		break
+	case 0xf:
+		var carry byte = 0
+		if cpu.Flags.C {
+			carry = 1
+		}
+		cpu.Flags.H = (0xf & cpu.A) < (0xf&cpu.A + carry)
+		cpu.Flags.C = cpu.A < cpu.A+carry
+		cpu.A -= (cpu.A + carry)
+	}
+	cpu.Flags.Z = cpu.A == 0
+	cpu.Flags.N = true
+	cpu.PC++
+}
+
+func (cpu *CPU) ADD_A_d8() {
+	val, err := cpu.getByteFromMemory(cpu.PC + 1)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	cpu.Flags.H = (0xf&cpu.A)+(0xf&val) > 0xf
+	s := int(val) + int(cpu.A)
+	cpu.Flags.Z = s == 0
+	cpu.Flags.C = s > 0xff
+	cpu.A = byte(0xff & s)
+	cpu.Flags.N = false
+	cpu.PC += 2
+}
+
+func (cpu *CPU) SUB_d8() {
+	val, err := cpu.getByteFromMemory(cpu.PC + 1)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	cpu.Flags.H = (0xf & cpu.A) < (0xf & val)
+	cpu.Flags.N = true
+	cpu.Flags.Z = (cpu.A - val) == 0
+	cpu.A -= val
+	cpu.PC += 2
+}
+
+func (cpu *CPU) ADD_HL_HL() {
+	val := uint16(cpu.H)<<8 | uint16(cpu.L)
+	high := byte(2 * val >> 8)
+	low := byte(2 * val & 0xff)
+	cpu.H = high
+	cpu.L = low
+	cpu.Flags.H = (val&0xfff)+(val&0xfff) > 0xfff
+	cpu.Flags.C = int(val)+int(val) > 0xffff
+	cpu.Flags.N = false
+	cpu.PC++
+}
+
+func (cpu *CPU) ADD_HL_SP() {
+	hl := uint16(cpu.H)<<8 | uint16(cpu.L)
+	sp := uint16(cpu.SP)<<8 | uint16(cpu.SP)
+	cpu.Flags.H = (sp&0xfff)+(hl&0xfff) > 0xfff
+	cpu.Flags.C = int(sp)+int(hl) > 0xffff
+	cpu.Flags.N = false
+	cpu.PC++
+}
+
+func (cpu *CPU) DEC_HL() {
+	hl := uint16(cpu.H)<<8 | uint16(cpu.L) - 1
+	cpu.H = byte(hl >> 8)
+	cpu.L = byte(0xff & hl)
+	cpu.PC++
+}
+
+func (cpu *CPU) DEC_SP() {
+	cpu.SP--
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_L() {
+	cpu.Flags.H = 0x1+(0xf&cpu.L) > 0xf
+	cpu.Flags.Z = uint16(cpu.L+1) == 0
+	cpu.Flags.N = false
+	cpu.L++
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_A() {
+	cpu.Flags.H = 0x1+(0xf&cpu.A) > 0xf
+	cpu.Flags.Z = uint16(cpu.A+1) == 0
+	cpu.Flags.N = false
+	cpu.A++
+	cpu.PC++
+}
+
+func (cpu *CPU) DEC_L() {
+	cpu.Flags.H = (0xf & cpu.L) == 0
+	cpu.Flags.Z = (cpu.L - 1) == 0
+	cpu.Flags.N = true
+	cpu.C--
+	cpu.PC++
+}
+
+func (cpu *CPU) DEC_A() {
+	cpu.Flags.H = (0xf & cpu.A) == 0
+	cpu.Flags.Z = (cpu.A - 1) == 0
+	cpu.Flags.N = true
+	cpu.C--
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_H() {
+	cpu.Flags.H = 0x1+(0xf&cpu.H) > 0xf
+	cpu.Flags.Z = uint16(cpu.H+1) == 0
+	cpu.Flags.N = false
+	cpu.H++
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_HL() {
+	val := uint16(cpu.H)<<8 + uint16(cpu.L) + 1
+	cpu.D = byte(val >> 8)
+	cpu.E = byte(0xff & val)
+	cpu.H = byte(val >> 8)
+	cpu.L = byte(0xff & val)
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_SP() {
+	cpu.SP++
+	cpu.PC++
+}
+
+func (cpu *CPU) INC_at_HL() {
+	addr := uint16(cpu.H)<<8 | uint16(cpu.L)
+	val, err := cpu.getByteFromMemory(addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	val++
+	byte := byte(val&0xff + 1)
+	err = cpu.Bus.WriteByteToAddr(addr, byte)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	cpu.Flags.Z = val == 0
+	cpu.Flags.H = uint16(0xff&val)+1 > 0xf
 	cpu.PC++
 }

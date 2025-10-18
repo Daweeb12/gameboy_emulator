@@ -17,7 +17,7 @@ type CPU struct {
 	SP          uint16
 	PC          uint16
 	IORegisters [IORegisterSize]byte
-	Bus         memory.Bus
+	Bus         *memory.Bus
 	Flags       *Flags
 }
 type Flags struct {
@@ -45,6 +45,7 @@ func Init(cpu *CPU) {
 	cpu.SP = 0xFFFE
 	cpu.PC = 0x0100
 	cpu.Flags = newFlags()
+	cpu.Bus = memory.NewBus()
 }
 
 func (cpu *CPU) checkFlags() (byte, byte, byte, byte) {

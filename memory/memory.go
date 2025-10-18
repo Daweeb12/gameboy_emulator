@@ -26,6 +26,10 @@ type Bus struct {
 	IE     byte
 }
 
+func NewBus() *Bus {
+	return &Bus{}
+}
+
 func (bus *Bus) WriteByteToAddr(addr uint16, b byte) error {
 	if addr <= 0x7ff {
 		bus.ROM[addr] = b
