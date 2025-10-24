@@ -3,6 +3,7 @@ package memory
 import (
 	"fmt"
 	"os"
+	"sync"
 )
 
 const (
@@ -16,14 +17,16 @@ const (
 )
 
 type Bus struct {
-	ROM    []byte
-	VRAM   [VRAMSize]byte
-	ERAM   [ERAMSize]byte
-	ExtRAM [ERAMSize]byte
-	WRAM   [WRAMSize]byte
-	OAM    [OAMSize]byte
-	HRAM   [HRAMSize]byte
-	IE     byte
+	ROM         []byte
+	VRAM        [VRAMSize]byte
+	ERAM        [ERAMSize]byte
+	ExtRAM      [ERAMSize]byte
+	WRAM        [WRAMSize]byte
+	OAM         [OAMSize]byte
+	HRAM        [HRAMSize]byte
+	IE          byte
+	JoypadInput byte
+	Mux         sync.Mutex
 }
 
 func NewBus() *Bus {
@@ -31,6 +34,10 @@ func NewBus() *Bus {
 }
 
 func (bus *Bus) WriteByteToAddr(addr uint16, b byte) error {
+	if addr == 0xff00 {
+		bus.JoypadInput = b
+		return nil
+	}
 	if addr <= 0x7ff {
 		bus.ROM[addr] = b
 		return nil

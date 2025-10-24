@@ -3,6 +3,7 @@ package cpu
 import (
 	"fmt"
 	"gameboy_emulator/memory"
+	"sync"
 )
 
 const (
@@ -19,7 +20,13 @@ type CPU struct {
 	IORegisters [IORegisterSize]byte
 	Bus         *memory.Bus
 	Flags       *Flags
+	IME         bool
+	IF          byte // interupt flag
+	IE          byte //interupt enable
+	imeDelay    int
+	Mux         sync.Mutex
 }
+
 type Flags struct {
 	Z bool
 	N bool
@@ -60,6 +67,13 @@ func (cpu *CPU) executeOPCode(opcode byte) {
 }
 
 func (cpu *CPU) getByteFromMemory(addr uint16) (byte, error) {
+	cpu.Bus.Mux.Lock()
+	defer cpu.Bus.Mux.Unlock()
+	if addr == 0xff00 {
+		b := cpu.Bus.JoypadInput
+		return b, nil
+
+	}
 	if addr <= 0x7ff {
 		return cpu.Bus.ROM[addr], nil
 	} else if addr >= 0x8000 && addr <= 0x9ff {
@@ -89,4 +103,20 @@ func (cpu *CPU) getByteFromMemory(addr uint16) (byte, error) {
 	return 0xff, fmt.Errorf("invalid memory location")
 }
 func (cpu *CPU) NOP() {
+}
+
+func (cpu *CPU) push_val16(val uint16) error {
+	cpu.PC--
+	low := byte(0xff & val)
+	high := byte(val >> 8)
+	err := cpu.Bus.WriteByteToAddr(cpu.SP, low)
+	if err != nil {
+		return err
+	}
+	cpu.PC--
+	err = cpu.Bus.WriteByteToAddr(cpu.SP, high)
+	if err != nil {
+		return err
+	}
+	return nil
 }
